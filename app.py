@@ -20,7 +20,8 @@ openai_api_key = os.getenv('openai_api_key')
 os.environ['openai_api_key'] = openai_api_key
 
 # Whenever RAG is being created, the first thing req is data.
-# Data need to be uploded and then chunks are created.
+# Step 1: Data need to be uploded and then chunks are created.
+# Step 2: Embeddings are created. 
 
 text_splitter = RecursiveCharacterTextSplitter(chunk_size = 1000, chunk_overlap = 100)
 
@@ -51,6 +52,40 @@ async def on_chat_start():
         
     # Text splitting into chunks 
     texts = text_splitter.split_text(text)
+
+    # creating metadata for each chunk 
+    metadatas = [{'source': f'{i}-pl'} for i in range(len(texts))]
+    # Creating embedding 
+    embeddings = OpenAIEmbeddings()
+    docsearch = await cl.make_async(Chroma.from_texts)(
+        texts, embedding=embeddings, metadatas=metadatas
+    )
+    
+    message_history = ChatMessageHistory()
+
+    memory = ConversationBufferMemory(
+        memory_key= 'chat_history'
+        , output_key='answer'
+        , chat_memory=message_history
+        , return_messages=True
+    )
+
+
+    # Creating the chain
+
+    chain = ConversationalRetrievalChain.from_llm(
+        ChatOpenAI(model_name = 'gpt-3.5-turbo', temperature = 0, streaming = True)
+        , chain_type = 'stuff'
+        , retriever=docsearch.as_retriever()
+        , memory=memory
+        , return_source_documents=True
+    ) 
+
+    # Let the user know that the system is ready. User can now ask question
+    msg.content = f"Processing `{file.name}` done. You can now ask questions!"
+    await msg.update()
+
+    cl.user_session.set("chain", chain)
 
     
 
