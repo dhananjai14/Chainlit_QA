@@ -18,3 +18,42 @@ load_dotenv()
 
 openai_api_key = os.getenv('openai_api_key')
 os.environ['openai_api_key'] = openai_api_key
+
+# Whenever RAG is being created, the first thing req is data.
+# Data need to be uploded and then chunks are created.
+
+text_splitter = RecursiveCharacterTextSplitter(chunk_size = 1000, chunk_overlap = 100)
+
+# 'async' is used to run the concurrency ie at same time it is required to run the multiple thread, then async is used.
+# 'async' is used for multiprocessing 
+
+@cl.on_chat_start
+async def on_chat_start():
+    files = None
+
+    # Wait for used to upload the files
+    while files == None:
+        files = await cl.AskFileMessage(
+            content= "please upload the file"
+            , accept=['text/plain']
+            , max_size_mb=20
+            , timeout=180
+        ).send()
+
+    file = files[0]
+
+    # Open the file 
+    msg = cl.Message(content=f"Processing {file.name} ...", disable_feedback= True)
+    await msg.send()
+
+    with open(file.path, 'r', encoding='utf-8') as f:
+        text = f.read()
+        
+    # Text splitting into chunks 
+    texts = text_splitter.split_text(text)
+
+    
+
+
+
+
