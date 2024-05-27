@@ -4,3 +4,4 @@ tiktoken
 chainlit
 openai
 langchain-community
+python-dotenv
